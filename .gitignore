@@ -23,10 +23,7 @@ vendor/
 # Go workspace file
 go.work
 
-# Environment files
-.env
-.env.local
-.env.*.local
+
 
 # IDE files
 .vscode/
@@ -52,11 +49,6 @@ logs/
 *.db
 *.sqlite
 
-# SSL certificates
-*.pem
-*.crt
-*.key
-certs/
 
 # Docker volumes
 postgres_data/
