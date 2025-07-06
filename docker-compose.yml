@@ -88,13 +88,6 @@ services:
       - "log_connections=on"
       - "-c"
       - "log_line_prefix=%t [%p] %u@%d "
-      - "-c"
-      - "log_statement=ddl"  # Log DDL statements
-      - "-c"
-      - "log_min_duration_statement=1000"  # Log slow queries
-      - "-c"
-      - "ssl=on"
-      - "-c"
     secrets:
       - postgres_db
       - postgres_user
