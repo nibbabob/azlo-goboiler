@@ -1,3 +1,4 @@
+# ⚠️ UNDER CONSTRUCTION | NOT FUNCTIONAL
 # 🚀 Go API Boilerplate
 
 A production-ready Go API boilerplate with security best practices, Docker containerization, and monitoring built-in. This project aims to give you a solid foundation to build upon, so you can focus on your business logic instead of infrastructure setup.
