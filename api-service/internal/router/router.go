@@ -3,6 +3,7 @@ package router
 
 import (
 	"net/http"
+	"time"
 
 	"azlo-goboiler/internal/config"
 	"azlo-goboiler/internal/handlers"
@@ -20,30 +21,50 @@ func Setup(app *config.Application) http.Handler {
 	h := handlers.New(app)
 	mw := middleware.New(app)
 
-	// Apply global middleware
-	router.Use(mw.Recovery)
-	router.Use(mw.Logging)
-	router.Use(middleware.Security) // Stateless middleware
-	router.Use(mw.RateLimit)
+	// Apply global middleware in order of execution
+	router.Use(mw.RequestID)                 // First: Add request ID
+	router.Use(mw.Recovery)                  // Second: Catch panics
+	router.Use(mw.Logging)                   // Third: Log requests
+	router.Use(middleware.Security)          // Fourth: Security headers
+	router.Use(mw.Timeout(30 * time.Second)) // Fifth: Request timeout
+	router.Use(mw.RateLimit)                 // Sixth: Rate limiting
 
-	// CORS
+	// CORS configuration
 	c := cors.New(cors.Options{
 		AllowedOrigins:   app.Config.CORS_Allowed_Origins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "X-Request-ID"},
+		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
+		MaxAge:           300, // 5 minutes
 	})
 	router.Use(c.Handler)
 
-	// Public routes
+	// Health and monitoring routes (no authentication required)
 	router.HandleFunc("/health", h.Health).Methods("GET")
-	router.HandleFunc("/auth", h.Auth).Methods("POST")
+	router.HandleFunc("/health/detailed", h.HealthDetailed).Methods("GET")
 	router.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
-	// Protected routes
-	protected := router.PathPrefix("/api/v1").Subrouter()
-	protected.Use(mw.JWT)
-	protected.HandleFunc("/protected", h.Protected).Methods("GET")
+	// Public authentication routes
+	auth := router.PathPrefix("/auth").Subrouter()
+	auth.HandleFunc("/register", h.Register).Methods("POST")
+	auth.HandleFunc("/login", h.Auth).Methods("POST")
+
+	// Protected API routes
+	api := router.PathPrefix("/api/v1").Subrouter()
+	api.Use(mw.JWT) // JWT authentication required for all /api/v1 routes
+
+	// User management routes
+	api.HandleFunc("/profile", h.GetProfile).Methods("GET")
+	api.HandleFunc("/profile", h.UpdateProfile).Methods("PUT")
+	api.HandleFunc("/password", h.ChangePassword).Methods("PUT")
+	api.HandleFunc("/users", h.GetUsers).Methods("GET")
+
+	// Example protected route
+	api.HandleFunc("/protected", h.Protected).Methods("GET")
+
+	// Database statistics route (admin only in production)
+	api.HandleFunc("/admin/db-stats", h.GetDatabaseStats).Methods("GET")
 
 	return router
 }
