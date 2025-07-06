@@ -2,7 +2,7 @@
 
 A production-ready Go API boilerplate with security best practices, Docker containerization, and monitoring built-in. This project aims to give you a solid foundation to build upon, so you can focus on your business logic instead of infrastructure setup.
 
-> **Free Resource by [Azlo.pro](https://azlo.pro/)** - This boilerplate is provided as a free resource to help developers get started faster. If you need custom backend development, automation services, or help scaling your API to production, check out my [professional services](https://azlo.pro/).
+> **Free Resource by [Azlo.pro](https://azlo.pro/)** - This boilerplate is provided as a free resource to help developers get started faster. If you need custom backend development, automation services, or help scaling your API to production, check out my [professional services](https://azlo.pro/index.html#skills).
 
 ## ✨ Features
 
