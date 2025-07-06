@@ -1,0 +1,85 @@
+# =============================================================================
+# Dockerfile
+# =============================================================================
+# Multi-stage build for optimized production image
+FROM golang:1.24-alpine AS builder
+
+# ARG for user/group IDs for better security and consistency.
+# Using non-standard IDs can help avoid conflicts with host system users.
+ARG UID=10001
+ARG GID=10001
+
+# Install build-time dependencies.
+# - git: Required for `go mod` to fetch modules from private repositories.
+# - ca-certificates: Needed for making secure SSL/TLS connections (e.g., to APIs, databases).
+# - tzdata: Provides timezone information, crucial for correct timestamp handling.
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Create a dedicated, non-root user and group with specific IDs.
+# This prevents the container from running as root, a critical security best practice.
+RUN addgroup -g ${GID} appgroup && \
+    adduser -u ${UID} -G appgroup -S -s /sbin/nologin appuser
+
+# Set the working directory inside the container.
+WORKDIR /app
+
+# Copy the go.mod and go.sum files first.
+# This leverages Docker's layer caching. Dependencies are only re-downloaded
+# if these files change, speeding up subsequent builds.
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+# Copy the rest of the application's source code.
+COPY . .
+
+# Build the Go application into a statically linked binary.
+# - CGO_ENABLED=0: Disables CGO, crucial for creating a static binary that works in `scratch`.
+# - GOOS=linux: Specifies the target operating system.
+# - ldflags='-w -s': Optimizes the binary.
+#   -w: Omits the DWARF symbol table, reducing binary size.
+#   -s: Strips symbol and debug information.
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags='-w -s' \
+    -o /app/main \
+    ./cmd/api/main.go
+
+# =============================================================================
+# STAGE 2: Final Production Image
+# =============================================================================
+# Use `scratch` as the base image. It's an empty image, providing the
+# smallest possible attack surface for maximum security.
+FROM scratch
+
+# Copy essential files from the builder stage.
+# - ca-certificates: For making secure outbound TLS connections.
+# - zoneinfo: For correct timezone handling.
+# - passwd/group: For the non-root user to be recognized inside the container.
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
+
+# Set the working directory for the final image.
+WORKDIR /app
+
+# Copy the compiled binary from the builder stage.
+# --chown=appuser:appgroup: Sets the ownership of the binary to the non-root user.
+# This prevents a potential attacker from modifying the application binary.
+COPY --from=builder --chown=appuser:appgroup /app/main /app/main
+
+# Use the non-root user to run the application.
+# This is the final step in securing the container via user permissions.
+USER appuser
+
+# Expose the port that the application listens on.
+# This is metadata; it doesn't actually publish the port.
+EXPOSE 8080
+
+# Define a health check for the container.
+# Docker will run this command to check if the application is healthy.
+# This assumes your Go application has a built-in flag to perform a health check.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/app/main", "health-check"]
+
+# Define the command to run when the container starts.
+ENTRYPOINT ["/app/main"]

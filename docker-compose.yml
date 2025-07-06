@@ -1,0 +1,226 @@
+services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:1.29-alpine
+    container_name: go-api-nginx
+    ports:
+      - "${NGINX_HTTP_PORT}:80"
+      - "${NGINX_HTTPS_PORT}:443"
+    tmpfs: # <-- ADD THIS LINE
+      - /tmp
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    networks:
+      - public-net
+      - app-net
+    restart: unless-stopped
+    user: "101:101" # Run as non-root user
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # API Service
+  api:
+    build:
+      context: ./api-service
+      dockerfile: Dockerfile
+    container_name: go-api
+    read_only: true # Make root filesystem read-only
+    tmpfs:
+      - /tmp
+    environment:
+      - APP_ENV=${APP_ENV}
+      - DB_SSL_MODE=${DB_SSL_MODE}
+    secrets:
+      - app_secret
+      - database_url
+      - db_host
+      - db_port
+      - db_name
+      - db_user
+      - db_password
+      - redis_host
+      - redis_port
+      - redis_password
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-net     # For Nginx to forward requests to it
+      - db-net      # To communicate with Postgres and Redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 512M
+        reservations:
+          cpus: '0.50'
+          memory: 256M
+
+  # PostgreSQL Database
+  db:
+    image: postgres:17-alpine
+    container_name: go-api-db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./certs:/etc/ssl/certs:ro
+      - ./scripts/init-db-ssl.sh:/docker-entrypoint-initdb.d/init-db-ssl.sh:ro
+    command:
+      - "postgres"
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_line_prefix=%t [%p] %u@%d "
+      - "-c"
+      - "log_statement=ddl"  # Log DDL statements
+      - "-c"
+      - "log_min_duration_statement=1000"  # Log slow queries
+      - "-c"
+      - "ssl=on"
+      - "-c"
+    secrets:
+      - postgres_db
+      - postgres_user
+      - postgres_password
+    environment:
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    restart: unless-stopped
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1G
+        reservations:
+          cpus: '0.50'
+          memory: 512M
+
+  # Redis for Caching
+  redis:
+    image: redis:8.0.2-alpine
+    container_name: go-api-redis
+    user: "redis:redis" # Run as non-root user
+    command: >
+      sh -c "redis-server --requirepass $$(cat /run/secrets/redis_password)"
+    secrets:
+      - redis_password
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$$(cat /run/secrets/redis_password)", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Prometheus for Monitoring
+  prometheus:
+    image: bitnami/prometheus:3.4.1
+    container_name: go-api-prometheus
+    user: "1001:1001" # <-- CHANGE THIS LINE
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/opt/bitnami/prometheus/conf/prometheus.yml:ro
+      - prometheus_data:/opt/bitnami/prometheus/data
+    networks:
+      - public-net
+      - app-net
+      - db-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+
+networks:
+  # Network for public-facing traffic
+  public-net:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1440
+
+  # Internal network for the application layer
+  app-net:
+    driver: bridge
+    internal: true # <-- This network is completely isolated from the outside world
+
+  # Internal network for backend data services
+  db-net:
+    driver: bridge
+    internal: true # <-- Also completely isolated
+
+secrets:
+  app_secret:
+    file: ./secrets/app_secret.txt
+  database_url:
+    file: ./secrets/database_url.txt
+  db_host:
+    file: ./secrets/db_host.txt
+  db_port:
+    file: ./secrets/db_port.txt
+  db_name:
+    file: ./secrets/db_name.txt
+  db_user:
+    file: ./secrets/db_user.txt
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_host:
+    file: ./secrets/redis_host.txt
+  redis_port:
+    file: ./secrets/redis_port.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  postgres_db:
+    file: ./secrets/postgres_db.txt
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
