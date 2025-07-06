@@ -2,6 +2,8 @@
 
 A production-ready Go API boilerplate with security best practices, Docker containerization, and monitoring built-in. This project aims to give you a solid foundation to build upon, so you can focus on your business logic instead of infrastructure setup.
 
+> **Free Resource by [Azlo.pro](https://azlo.pro/)** - This boilerplate is provided as a free resource to help developers get started faster. If you need custom backend development, automation services, or help scaling your API to production, check out my [professional services](https://azlo.pro/).
+
 ## ✨ Features
 
 - **🔐 Security First**: JWT authentication, rate limiting, SSL/TLS, security headers
@@ -163,7 +165,7 @@ func Setup(app *config.Application) http.Handler {
     protected.Use(mw.JWT)
     protected.HandleFunc("/protected", h.Protected).Methods("GET")
     protected.HandleFunc("/users", h.GetUsers).Methods("GET")        // ← Add this line
-    
+   
     return router
 }
 ```
@@ -312,6 +314,26 @@ rm -rf secrets/
 docker-compose up -d
 ```
 
+## 🚀 Need Help Taking This to Production?
+
+This boilerplate gets you started, but taking an API to production involves additional considerations:
+
+- **Scaling strategies** for high-traffic applications
+- **Advanced monitoring** and alerting setup
+- **CI/CD pipeline** integration
+- **Performance optimization** for your specific use case
+- **Custom authentication** and authorization systems
+- **Integration** with existing business systems
+
+If you need help with any of these aspects, I offer [professional backend development and automation services](https://azlo.pro/). I specialize in:
+
+- **High-Performance Backend Development** with Go and Rust
+- **Custom Business Automation** to streamline your workflows
+- **API Integration Services** to connect your systems
+- **Rapid MVP Development** to get your ideas to market faster
+
+[Get in touch](https://azlo.pro/#contact) to discuss how I can help scale your project.
+
 ## 🤝 Contributing
 
 We'd love your help making this boilerplate even better! Here are some ways to contribute:
@@ -335,6 +357,22 @@ This boilerplate stands on the shoulders of giants. Special thanks to:
 
 ---
 
-**Happy coding!** 🎉 
+**Happy coding!** 🎉
 
 If you run into any issues or have questions, don't hesitate to open an issue. We're here to help make your development experience as smooth as possible.
+
+---
+
+## 👨‍💻 About the Creator
+
+This boilerplate was created by [Christian Nielsen](https://azlo.pro/about.html), a freelance developer who specializes in building high-performance backend systems and custom automation solutions. 
+
+**Why I created this:** As a developer who's built countless APIs from scratch, I wanted to share a solid foundation that incorporates all the security and monitoring best practices I've learned over the years. This saves you weeks of setup time so you can focus on what matters - your business logic.
+
+**More Resources:**
+- 🌐 **Website**: [azlo.pro](https://azlo.pro/)
+- 📖 **Blog**: [azlo.pro/blogs](https://azlo.pro/blogs/) - Technical insights and tutorials
+- 💼 **Services**: [azlo.pro/#services](https://azlo.pro/#services) - Professional development services
+- 📧 **Contact**: [christian.nielsen@azlo.pro](mailto:christian.nielsen@azlo.pro)
+
+*This boilerplate is provided free as part of my commitment to supporting the developer community. If it helps your project, consider checking out my other resources or reaching out if you need professional development services.*
