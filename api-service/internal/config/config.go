@@ -41,6 +41,8 @@ type Config struct {
 	LogLevel             string   `mapstructure:"LOG_LEVEL"`
 	RequestTimeout       int      `mapstructure:"REQUEST_TIMEOUT_SECONDS"`
 	JWTExpirationHours   int      `mapstructure:"JWT_EXPIRATION_HOURS"`
+	DefaultUserUsername  string   `mapstructure:"DEFAULT_USER_USERNAME"`
+	DefaultUserPassword  string   `mapstructure:"DEFAULT_USER_PASSWORD"`
 }
 
 type ContextKey string
@@ -83,6 +85,8 @@ func Load() (config Config, err error) {
 		viper.SetDefault("LOG_LEVEL", "debug")
 		viper.SetDefault("REQUEST_TIMEOUT_SECONDS", 60)
 		viper.SetDefault("JWT_EXPIRATION_HOURS", 168) // 7 days for dev
+		viper.SetDefault("DEFAULT_USER_USERNAME", "admin")
+		viper.SetDefault("DEFAULT_USER_PASSWORD", "admin123!")
 	}
 
 	// Common defaults

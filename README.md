@@ -10,7 +10,7 @@ A production-ready Go API boilerplate with security best practices, Docker conta
 - **📊 Monitoring**: Prometheus metrics, health checks, structured logging
 - **🐳 Containerized**: Docker Compose with multi-stage builds and security hardening
 - **🗄️ Database Ready**: PostgreSQL with SSL and Redis for caching
-- **🔧 Developer Friendly**: Comprehensive middleware, clean architecture
+- **🔧 Developer Friendly**: Comprehensive middleware, clean architecture, and default user seeding in development.
 - **🛡️ Production Ready**: Secrets management, non-root containers, network isolation
 
 ## 📋 Prerequisites
@@ -26,8 +26,8 @@ Before getting started, make sure you have:
 ### 1. Clone and Navigate
 
 ```bash
-git clone <your-repo-url>
-cd <your-project-directory>
+git clone https://github.com/nibbabob/azlo-goboiler.git
+cd azlo-goboiler
 ```
 
 ### 2. Configure Environment
@@ -91,9 +91,7 @@ This will start:
 curl -k https://localhost/health
 
 # Get a JWT token
-curl -k -X POST https://localhost/auth \
-  -H "Content-Type: application/json" \
-  -d '{"username":"user","password":"password"}'
+curl -k -X POST https://localhost/auth/login   -H "Content-Type: application/json"   -d '{"username":"admin","password":"admin123!"}'
 
 # Use the token for protected routes
 curl -k https://localhost/api/v1/protected \
@@ -174,13 +172,10 @@ func Setup(app *config.Application) http.Handler {
 
 ```bash
 # Get a token first
-TOKEN=$(curl -k -s -X POST https://localhost/auth \
-  -H "Content-Type: application/json" \
-  -d '{"username":"user","password":"password"}' | jq -r '.data.token')
+curl -k -X POST https://localhost/auth/login   -H "Content-Type: application/json"   -d '{"username":"admin","password":"admin123!"}'
 
 # Test your new endpoint
-curl -k https://localhost/api/v1/users \
-  -H "Authorization: Bearer $TOKEN"
+curl -k https://localhost/api/v1/users -H "Authorization: Bearer $TOKEN"
 ```
 
 ## 🔧 Development Workflow

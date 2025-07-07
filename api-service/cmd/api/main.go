@@ -108,10 +108,20 @@ func main() {
 	}
 	defer db.Close()
 
+	// Application Context
+	app := &config.Application{
+		Config: cfg,
+		Logger: logger,
+		DB:     db,
+	}
+
 	// Initialize database schema
 	if err := database.InitializeSchema(db); err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize database schema")
 	}
+
+	// Seed default user in development
+	database.SeedDefaultUser(app)
 
 	// Start database connection monitoring
 	database.StartConnectionMonitoring(db)
@@ -153,13 +163,8 @@ func main() {
 	defer redisClient.Close()
 	logger.Info().Msg("Redis client initialized")
 
-	// Application Context
-	app := &config.Application{
-		Config: cfg,
-		Logger: logger,
-		DB:     db,
-		Redis:  redisClient,
-	}
+	// Update Application Context with Redis client
+	app.Redis = redisClient
 
 	// Server Setup with production-ready timeouts
 	srv := &http.Server{
