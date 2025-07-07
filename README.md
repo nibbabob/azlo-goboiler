@@ -10,7 +10,7 @@ A production-ready Go API boilerplate with security best practices, Docker conta
 - **📊 Monitoring**: Prometheus metrics, health checks, structured logging
 - **🐳 Containerized**: Docker Compose with multi-stage builds and security hardening
 - **🗄️ Database Ready**: PostgreSQL with SSL and Redis for caching
-- **🔧 Developer Friendly**: Hot reload, comprehensive middleware, clean architecture
+- **🔧 Developer Friendly**: Comprehensive middleware, clean architecture
 - **🛡️ Production Ready**: Secrets management, non-root containers, network isolation
 
 ## 📋 Prerequisites
@@ -78,7 +78,7 @@ docker-compose up -d
 ```
 
 This will start:
-- **API**: Your Go application (internally on port 8080)
+- **API**: The API service operates on an isolated internal network and listens on port 8080. It is not exposed to the public internet directly. The Nginx service acts as a reverse proxy, securely managing and forwarding all external traffic to the API.
 - **Database**: PostgreSQL with SSL
 - **Cache**: Redis
 - **Proxy**: Nginx with SSL termination (ports 80→443 redirect, 443 for HTTPS)
@@ -214,8 +214,10 @@ For database schema changes, you'd typically:
 
 ### Environment-Specific Configuration
 
-- **Development**: Uses self-signed certificates, debug logging
-- **Production**: Update `APP_ENV=production` in `.env`, use real certificates
+Configuration is managed through two methods:
+
+- **.env file**:  Used for non-sensitive, environment-specific variables like APP_ENV=production or APP_ENV=development
+- **Docker Secrets**: The /secrets directory contains files for all sensitive data (e.g., database credentials, API keys). These are securely mounted into the containers at runtime and should never be committed to version control.
 
 ## 🔒 Security Features
 
@@ -225,7 +227,7 @@ This boilerplate includes several security measures:
 - **🚦 Rate Limiting**: Prevents abuse (configurable per IP)
 - **🛡️ Security Headers**: HSTS, CSP, X-Frame-Options, etc.
 - **🔒 SSL/TLS**: HTTPS everywhere with modern cipher suites
-- **👤 Non-Root Containers**: All services run as non-privileged users
+- **👤 Non-Root Containers**: For enhanced security, all services run as non-privileged users. The nginx, redis, and prometheus containers use dedicated low-privilege users, and the api service's filesystem is read-only.
 - **📁 Read-Only Filesystems**: Containers can't write to their root filesystems
 - **🌐 Network Isolation**: Internal networks for database/cache communication
 - **🗝️ Secrets Management**: Credentials stored in Docker secrets, not environment variables
