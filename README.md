@@ -87,7 +87,7 @@ Nginx
 </tr>
 <tr>
 <td align="center" width="25%">
-<img src="https://svgmix.com/item/z6bPxO/download.svg" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/grafana.svg" width="60"><br>
 <b>Visualization</b><br>
 Grafana
 </td>
@@ -102,7 +102,7 @@ Prometheus
 Loki
 </td>
 <td align="center" width="25%">
-<img src="https://grafana.com/static/img/logos/logo-tempo.svg" width="60"><br>
+<img src="https://grafana.com/static/assets/img/logos/grafana-tempo.svg" width="60"><br>
 <b>Tracing</b><br>
 Tempo
 </td>
