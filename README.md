@@ -75,24 +75,24 @@ Go (Golang)
 PostgreSQL 18
 </td>
 <td align="center" width="25%">
-<img src="https://redis.io/images/redis-white.png" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/redis.svg" width="60"><br>
 <b>Cache</b><br>
 Redis 8
 </td>
 <td align="center" width="25%">
-<img src="https://www.nginx.com/wp-content/uploads/2020/05/NGINX-product-icon.svg" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/nginx.svg" width="60"><br>
 <b>Proxy</b><br>
 Nginx
 </td>
 </tr>
 <tr>
 <td align="center" width="25%">
-<img src="https://grafana.com/static/img/menu/grafana2.svg" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/grafana.svg" width="60"><br>
 <b>Visualization</b><br>
 Grafana
 </td>
 <td align="center" width="25%">
-<img src="https://prometheus.io/assets/prometheus_logo_grey.svg" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/prometheus.svg" width="60"><br>
 <b>Metrics</b><br>
 Prometheus
 </td>
@@ -102,7 +102,7 @@ Prometheus
 Loki
 </td>
 <td align="center" width="25%">
-<img src="https://grafana.com/static/img/logos/logo-tempo.svg" width="60"><br>
+<img src="https://grafana.com/static/assets/img/logos/grafana-tempo.svg" width="60"><br>
 <b>Tracing</b><br>
 Tempo
 </td>
@@ -384,7 +384,7 @@ This template is a great starting point, but every business has unique needs. If
 
 <div align="center">
 
-**[Contact Me](https://www.azlo.pro/en/contact)** • **[View Portfolio](https://www.azlo.pro/en/)**
+**[Contact Me](https://www.azlo.pro/en/#contact)** • **[View Portfolio](https://www.azlo.pro/en/#blueprints)**
 
 </div>
 
