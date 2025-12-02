@@ -384,7 +384,7 @@ This template is a great starting point, but every business has unique needs. If
 
 <div align="center">
 
-**[Contact Me](https://www.azlo.pro/en/contact)** • **[View Portfolio](https://www.azlo.pro/en/)**
+**[Contact Me](https://www.azlo.pro/en/#contact)** • **[View Portfolio](https://www.azlo.pro/en/#blueprints)**
 
 </div>
 
