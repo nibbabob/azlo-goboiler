@@ -1,0 +1,293 @@
+services:
+  # ============================================================
+  # CORE APPLICATION SERVICES
+  # ============================================================
+
+  # Nginx Reverse Proxy & Frontend
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: go-api-nginx
+    ports:
+      - "${NGINX_HTTP_PORT}:80"
+      - "${NGINX_HTTPS_PORT}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - ./www:/var/www/html:ro # <-- Hot reloading for frontend
+    depends_on:
+      - api
+      - otel-collector
+    networks:
+      - public-net
+      - app-net
+    restart: unless-stopped
+    user: "101:101"
+
+  # Go API Service
+  api:
+    build:
+      context: ./api-service
+      dockerfile: Dockerfile
+    container_name: go-api
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+      - DB_SSL_MODE=${DB_SSL_MODE:-require}
+    secrets:
+      - app_secret
+      - database_url
+      - db_host
+      - db_port
+      - db_name
+      - db_user
+      - db_password
+      - redis_host
+      - redis_port
+      - redis_password
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-net
+      - db-net
+    healthcheck:
+      test: ["CMD", "/app/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================
+  # DATA STORAGE
+  # ============================================================
+
+  # PostgreSQL Database
+  db:
+    image: postgres:18-alpine
+    container_name: go-api-db
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./certs:/etc/ssl/certs:ro
+      - ./scripts/init-db-ssl.sh:/docker-entrypoint-initdb.d/init-db-ssl.sh:ro
+    command:
+      - "postgres"
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_line_prefix=%t [%p] %u@%d "
+    secrets:
+      - postgres_db
+      - postgres_user
+      - postgres_password
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:8.0.2-alpine
+    container_name: go-api-redis
+    ports:
+      - "6379:6379" # Exposed for local development tools
+    user: "redis:redis"
+    command: >
+      sh -c "redis-server --requirepass $$(cat /run/secrets/redis_password)"
+    secrets:
+      - redis_password
+    volumes:
+      - redis_data:/data
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$$(cat /run/secrets/redis_password)", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # OBSERVABILITY STACK
+  # ============================================================
+
+  # Grafana
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: go-api-grafana
+    user: "472"
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      # SMTP Configuration
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      - GF_SMTP_USER__FILE=/run/secrets/grafana_smtp_user
+      - GF_SMTP_PASSWORD__FILE=/run/secrets/grafana_smtp_password
+      # [FIXED] Changed from specific email to a generic placeholder or variable
+      - GF_SMTP_FROM_ADDRESS=no-reply@example.com
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      - ./grafana/dashboards/:/etc/grafana/dashboards/
+    networks:
+      - public-net
+      - app-net
+      - db-net
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: go-api-prometheus
+    user: "nobody"
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - public-net
+      - app-net
+      - db-net
+
+  # Promtail (Logs)
+  promtail:
+    image: grafana/promtail:latest
+    container_name: go-api-promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - app-net
+      - db-net
+    depends_on:
+      - loki
+
+  # Loki (Log Aggregation)
+  loki:
+    image: grafana/loki:latest
+    container_name: go-api-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    networks:
+      - app-net
+      - db-net
+
+  # Tempo (Tracing)
+  tempo:
+    image: grafana/tempo:latest
+    container_name: go-api-tempo
+    user: "10001:10001"
+    command: ["-config.file=/etc/tempo/tempo-config.yml"]
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo_data:/data
+    networks:
+      - app-net
+      - db-net
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: go-api-otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yml"]
+    environment:
+      - NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT}
+    volumes:
+      - ./otel-collector/config.yml:/etc/otelcol-contrib/config.yml:ro
+    networks:
+      - app-net
+      - public-net
+    depends_on:
+      - loki
+      - tempo
+
+# ============================================================
+# VOLUMES & NETWORKS
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  tempo_data:
+    driver: local
+
+networks:
+  public-net:
+    driver: bridge
+  app-net:
+    driver: bridge
+    internal: true
+  db-net:
+    driver: bridge
+    internal: true
+
+# ============================================================
+# SECRETS (FILE BASED FOR DEV)
+# ============================================================
+secrets:
+  app_secret:
+    file: ./secrets/app_secret.txt
+  database_url:
+    file: ./secrets/database_url.txt
+  db_host:
+    file: ./secrets/db_host.txt
+  db_port:
+    file: ./secrets/db_port.txt
+  db_name:
+    file: ./secrets/db_name.txt
+  db_user:
+    file: ./secrets/db_user.txt
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_host:
+    file: ./secrets/redis_host.txt
+  redis_port:
+    file: ./secrets/redis_port.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  postgres_db:
+    file: ./secrets/postgres_db.txt
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  grafana_smtp_user:
+    file: ./secrets/grafana_smtp_user.txt
+  grafana_smtp_password:
+    file: ./secrets/grafana_smtp_password.txt

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - App Template</title>
+    <link rel="stylesheet" href="auth.css">
+
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>🚀 SaaS Starter Kit</h1>
+                <p class="auth-subtitle">Sign in to your account</p>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email or Username</label>
+                    <input 
+                        type="text" 
+                        id="email" 
+                        name="email"
+                        placeholder="you@example.com or johndoe" 
+                        required
+                        autocomplete="email"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password"
+                        placeholder="Enter your password" 
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <div class="form-options">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="remember" name="remember">
+                        <label for="remember">Remember me</label>
+                    </div>
+                    <a href="#" class="forgot-password">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">
+                    Sign In
+                </button>
+
+                <div class="auth-divider">
+                    <span>Don't have an account?</span>
+                </div>
+
+                <a href="register.html" class="btn btn-secondary btn-full">
+                    Create Account
+                </a>
+            </form>
+
+            <div id="errorMessage" class="error-message"></div>
+        </div>
+    </div>
+
+    <script src="auth.js" type="module"></script>
+</body>
+</html>

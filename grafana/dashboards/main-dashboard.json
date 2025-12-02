@@ -1,0 +1,55 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "annotations": { "list": [] },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "API Request Rate (5m)",
+      "type": "graph",
+      "datasource": "prometheus_ds",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"go-api\"}[5m])) by (code)"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "title": "API Error Logs",
+      "type": "logs",
+      "datasource": "loki_ds",
+      "targets": [
+        {
+          "expr": "{job=\"go-api\"} |= `level=error`"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "title": "Recent API Traces",
+      "type": "traces",
+      "datasource": "tempo_ds",
+      "targets": [
+        {
+          "serviceMap": { "datasourceUid": "tempo_ds" },
+          "query": "{.service.name=\"go-api-service\"}"
+        }
+      ],
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 }
+    }
+  ],
+  "schemaVersion": 16,
+  "style": "dark",
+  "tags": [],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m"] },
+  "timezone": "browser",
+  "title": "Main API Dashboard",
+  "version": 1
+}

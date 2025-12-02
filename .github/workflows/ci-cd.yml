@@ -1,0 +1,124 @@
+name: CI - Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main        # Deploy to prod
+      - development # Build for testing
+  workflow_dispatch: # Allows manual triggering
+
+# --- CRITICAL: This env block MUST be here at the root level ---
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+# -------------------------------------------------------------
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Required to push to GHCR
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          # SWITCH BACK TO YOUR SECRETS (Acting as YOU, not the bot)
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # ======================================================
+      # 1. API SERVICE
+      # ======================================================
+      - name: Extract metadata (tags, labels) for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=short
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api-service
+          file: ./api-service/dockerfile
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ======================================================
+      # 2. SCRAPER SERVICE
+      # ======================================================
+      - name: Extract metadata (tags, labels) for Scraper
+        id: meta-scraper
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-scraper
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=short
+
+      - name: Build and push Scraper image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./los-scrapers
+          file: ./los-scrapers/Dockerfile
+          push: true
+          tags: ${{ steps.meta-scraper.outputs.tags }}
+          labels: ${{ steps.meta-scraper.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ======================================================
+      # 3. NGINX (FRONTEND)
+      # ======================================================
+      - name: Extract metadata (tags, labels) for Nginx
+        id: meta-nginx
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=short
+
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v6
+        with:
+          # Context is the repo root so it can copy 'www/' and 'nginx/nginx.conf'
+          context: .
+          file: ./nginx/Dockerfile
+          push: true
+          tags: ${{ steps.meta-nginx.outputs.tags }}
+          labels: ${{ steps.meta-nginx.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+  
+  # ======================================================
+  # NEW JOB: UPDATE GIST
+  # ======================================================
+  update-gist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Update Gist
+        uses: exuanbo/actions-deploy-gist@v1
+        with:
+          token: ${{ secrets.DOCKER_PASSWORD }}
+          gist_id: ${{ secrets.GIST_ID }}
+          file_path: docker-compose.prod.yml #
+          # Mapping specific files if names differ
+          gist_file_name: docker-compose.prod.yml

@@ -1,0 +1,38 @@
+# /grafana/provisioning/alerting/rules.yml
+apiVersion: 1
+
+groups:
+  - name: APIServiceAlerts
+    folder: API Alerts
+    interval: 1m
+    rules:
+      - uid: go-api-down-alert-uid
+        title: GoAPIDown
+        alert: GoAPIDown
+        for: 1m
+        noDataState: OK
+        labels:
+          severity: critical
+        annotations:
+          summary: "Go API ({{ $labels.instance }}) is down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."
+        data:
+          - refId: A
+            queryType: ''  # Required for v12
+            relativeTimeRange:  # <-- MOVED HERE (root level)
+              from: 600  # 10 min lookback (safer default; adjust as needed)
+              to: 0
+            datasourceUid: prometheus_ds  # Confirm this matches your DS UID
+            model:
+              refId: A
+              expr: up{job="go-api"} == 0
+              queryType: ''
+              editorMode: code
+              range: true  # Enables range query mode
+              intervalMs: 1000  # 1s step (fine for up{} metric)
+              maxDataPoints: 43200
+              hide: false
+              datasource:
+                type: prometheus
+                uid: prometheus_ds
+        condition: A

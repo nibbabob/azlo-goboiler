@@ -1,0 +1,47 @@
+# Global settings
+global:
+  scrape_interval: 15s # How frequently to scrape targets
+  evaluation_interval: 15s
+
+# A list of scrape configurations
+scrape_configs:
+  # Job 1: Monitor Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Job 2: Monitor the Go API
+  - job_name: 'go-api'
+    # Assuming your Go API exposes metrics on a /metrics endpoint.
+    # We use Docker's internal DNS to connect using the service name 'go-api'.
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:8080'] # service_name:port
+
+  # Job 3: Monitor Nginx
+  # This requires enabling the stub_status module in nginx.conf (see Step 2)
+  - job_name: 'nginx'
+    # Define the scheme to use for scraping
+    scheme: https
+    # Tell Prometheus to skip verifying the self-signed SSL cert
+    tls_config:
+      insecure_skip_verify: true
+    static_configs:
+      # Target Nginx on the secure port 443
+      - targets: ['nginx:443']
+
+  # Monitor the Host (CPU, RAM, Disk)
+  - job_name: 'node-exporter'
+    dns_sd_configs:
+      - names:
+        - 'tasks.node-exporter'
+        type: 'A'
+        port: 9100
+
+  # Monitor Docker Containers
+  - job_name: 'cadvisor'
+    dns_sd_configs:
+      - names:
+        - 'tasks.cadvisor'
+        type: 'A'
+        port: 8080

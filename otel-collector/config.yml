@@ -1,0 +1,38 @@
+# /otel-collector/config.yml
+receivers:
+  otlp:
+    protocols:
+      http:
+        # This is the internal port Nginx will talk to
+        endpoint: 0.0.0.0:4318
+        cors:
+          # Allow our frontend origin
+          allowed_origins:
+            - "https://localhost" # Change if your port is different
+            - "https://localhost:${NGINX_HTTPS_PORT}"
+
+exporters:
+  # Exporter for Traces
+  otlphttp/tempo:
+    # Forwards traces to Tempo
+    endpoint: "http://tempo:4318"
+    headers:
+      # Optional: Add auth if Tempo requires it
+      # Authorization: "Basic <base64-creds>"
+
+  # Exporter for Logs (use OTLP HTTP to Loki's native endpoint)
+  otlphttp/loki:
+    # Forwards logs to Loki's OTLP ingestion
+    endpoint: "http://loki:3100/otlp/v1/logs"  # Note: /otlp/v1/logs, not the legacy /loki/api/v1/push
+    headers:
+      # Optional: Add X-Scope-OrgID for multi-tenancy (e.g., "anonymous" or your tenant ID)
+      # X-Scope-OrgID: "anonymous"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlphttp/tempo]
+    logs:
+      receivers: [otlp]
+      exporters: [otlphttp/loki]

@@ -1,0 +1,77 @@
+# =============================================================================
+# .gitignore - Azlo Go Template
+# =============================================================================
+
+# --- Security & Environment Variables ---
+.env
+.env.local
+.env.*.local
+# Exception: Keep the example template
+!.env.example
+
+# --- Generated Secrets (from migrate.sh) ---
+secrets/
+
+# --- SSL Certificates ---
+# Ignore actual certificate files
+certs/*.pem
+certs/*.key
+certs/*.crt
+certs/*.csr
+certs/*.srl
+# Optional: If you want to force the folder structure but ignore content:
+# certs/*
+# !certs/.gitkeep
+
+# --- Go / API Service ---
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Specific build artifacts for this project
+api-service/main
+api-service/healthcheck
+api-service/bin/
+api-service/dist/
+
+# Dependency directories (if using vendor mode)
+vendor/
+
+# Go workspace file
+go.work
+
+# --- Docker & Local Data ---
+# Ignore local volume mounts if they are created in the project root
+postgres_data/
+redis_data/
+prometheus_data/
+grafana_data/
+loki_data/
+tempo_data/
+
+# --- IDE & Editor Settings ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bkp
+*.bak
+
+# --- OS Generated Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/

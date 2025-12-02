@@ -1,0 +1,41 @@
+# /grafana/provisioning/datasources/datasources.yml
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus_ds # A unique ID
+    access: proxy
+    url: http://prometheus:9090
+    jsonData:
+      httpMethod: GET
+    isDefault: true # Make this the default for metrics
+
+  - name: Loki
+    type: loki
+    uid: loki_ds
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      # Link this to Prometheus
+      derivedFields:
+        - datasourceUid: 'prometheus_ds'
+          matcherRegex: 'traceID=(\w+)'
+          name: 'TraceID'
+          url: '$${__value.raw}'
+
+  - name: Tempo
+    type: tempo
+    uid: tempo_ds
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      # Link this to Loki
+      tracesToLogs:
+        traceQLStreaming: false
+        datasourceUid: 'loki_ds'
+        tags: ['job', 'instance']
+        mappedTags: [{ key: 'service.name', value: 'job' }]
+        spanStartTimeShift: '1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true

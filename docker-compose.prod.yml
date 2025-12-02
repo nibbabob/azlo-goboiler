@@ -1,0 +1,299 @@
+services:
+  # --- LOGGING & MONITORING ---
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Swarm requires absolute paths for bind mounts
+      - ${PWD}/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - app-net
+      - db-net
+    depends_on:
+      - loki
+    deploy:
+      mode: global # Runs on every node (good for logs)
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol-contrib/config.yml"]
+    environment:
+      - NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT}
+    volumes:
+      - ${PWD}/otel-collector/config.yml:/etc/otelcol-contrib/config.yml:ro
+    networks:
+      - app-net
+      - public-net
+    depends_on:
+      - loki
+      - tempo
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ${PWD}/loki/loki-config.yml:/etc/loki/config.yml:ro
+      - ${PWD}/loki/data:/loki
+    networks:
+      - app-net
+      - db-net
+
+  tempo:
+    image: grafana/tempo:latest
+    # User is forced to match the permissions we set on the host directory
+    user: "10001:10001"
+    command: ["-config.file=/etc/tempo/tempo-config.yml"]
+    ports:
+      - "3200:3200"
+    volumes:
+      - ${PWD}/tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      # Use the bind mount where we fixed permissions
+      - ${PWD}/tempo/data:/data
+    networks:
+      - app-net
+      - db-net
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    user: "472"
+    ports:
+      - "3000:3000"
+    secrets:                         # <--- 1. Grant access to secrets
+      - grafana_smtp_user
+      - grafana_smtp_password
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      # SMTP Configuration
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.gmail.com:587
+      # Use __FILE suffix to tell Grafana to read the value from a file
+      - GF_SMTP_USER__FILE=/run/secrets/grafana_smtp_user         # <--- 2. Read from secret
+      - GF_SMTP_PASSWORD__FILE=/run/secrets/grafana_smtp_password # <--- 2. Read from secret
+      - GF_SMTP_FROM_ADDRESS=no-reply@example.com
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ${PWD}/grafana/provisioning/:/etc/grafana/provisioning/
+      - ${PWD}/grafana/dashboards/:/etc/grafana/dashboards/
+    networks:
+      - public-net
+      - app-net
+      - db-net
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+  prometheus:
+    image: prom/prometheus:latest
+    user: "nobody"
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ${PWD}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - public-net
+      - app-net
+      - db-net
+
+  # --- APPLICATION SERVICES ---
+
+  nginx:
+    # Use the GitHub image (Frontend is baked in here)
+    image: ghcr.io/your-username/your-project-nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    tmpfs:
+      - /tmp
+    volumes:
+      # Only mount certs. Config and www are inside the image.
+      - ${PWD}/certs:/etc/nginx/certs:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - public-net
+      - app-net
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+
+  api:
+    # Use the GitHub image
+    image: ghcr.io/your-username/your-project-api:latest
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      - APP_ENV=${APP_ENV}
+      - DB_SSL_MODE=${DB_SSL_MODE}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=587
+      - ALERT_SMTP_USER=admin@example.com # Reusing the var from .env
+      - SMTP_FROM=no-reply@example.com
+    secrets:
+      - SMTP_PASSWORD        
+      - app_secret
+      - database_url
+      - db_host
+      - db_port
+      - db_name
+      - db_user
+      - db_password
+      - redis_host
+      - redis_port
+      - redis_password
+    # Swarm compatible depends_on (List only)
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-net
+      - db-net
+    healthcheck:
+      test: ["NONE"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # --- DATA SERVICES ---
+
+  redis:
+    image: redis:8.0.2-alpine
+    user: "redis:redis"
+    command: >
+      sh -c "redis-server --requirepass $$(cat /run/secrets/redis_password)"
+    secrets:
+      - redis_password
+    volumes:
+      - redis_data:/data
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$$(cat /run/secrets/redis_password)", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
+  db:
+    image: postgres:18-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ${PWD}/certs:/etc/ssl/certs:ro
+      - ${PWD}/scripts/init-db-ssl.sh:/docker-entrypoint-initdb.d/init-db-ssl.sh:ro
+    command:
+      - "postgres"
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_line_prefix=%t [%p] %u@%d "
+    secrets:
+      - postgres_db
+      - postgres_user
+      - postgres_password
+    environment:
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- SYSTEM METRICS ---
+  node-exporter:
+    image: prom/node-exporter:latest
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - app-net
+    deploy:
+      mode: global
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - app-net
+    deploy:
+      mode: global
+    # cAdvisor can sometimes be noisy, these suppress some harmless errors
+    command:
+      - "-housekeeping_interval=10s"
+      - "-docker_only=true"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  # We use a bind mount for Tempo, so no volume definition needed here unless you want it managed
+
+networks:
+  public-net:
+    driver: overlay
+  app-net:
+    driver: overlay
+  #  internal: true
+  db-net:
+    driver: overlay
+    internal: true
+
+# --- SECRETS CONFIGURATION (Swarm Mode) ---
+secrets:
+  app_secret:
+    external: true
+  database_url:
+    external: true
+  db_host:
+    external: true
+  db_port:
+    external: true
+  db_name:
+    external: true
+  db_user:
+    external: true
+  db_password:
+    external: true
+  redis_host:
+    external: true
+  redis_port:
+    external: true
+  redis_password:
+    external: true
+  postgres_db:
+    external: true
+  postgres_user:
+    external: true
+  postgres_password:
+    external: true
+  grafana_smtp_user:
+    external: true
+  grafana_smtp_password:
+    external: true
