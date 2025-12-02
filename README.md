@@ -75,24 +75,24 @@ Go (Golang)
 PostgreSQL 18
 </td>
 <td align="center" width="25%">
-<img src="https://redis.io/images/redis-white.png" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/redis.svg" width="60"><br>
 <b>Cache</b><br>
 Redis 8
 </td>
 <td align="center" width="25%">
-<img src="https://www.nginx.com/wp-content/uploads/2020/05/NGINX-product-icon.svg" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/nginx.svg" width="60"><br>
 <b>Proxy</b><br>
 Nginx
 </td>
 </tr>
 <tr>
 <td align="center" width="25%">
-<img src="https://grafana.com/static/img/menu/grafana2.svg" width="60"><br>
+<img src="https://svgmix.com/item/z6bPxO/download.svg" width="60"><br>
 <b>Visualization</b><br>
 Grafana
 </td>
 <td align="center" width="25%">
-<img src="https://prometheus.io/assets/prometheus_logo_grey.svg" width="60"><br>
+<img src="https://logo.svgcdn.com/logos/prometheus.svg" width="60"><br>
 <b>Metrics</b><br>
 Prometheus
 </td>
