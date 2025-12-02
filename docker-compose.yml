@@ -22,7 +22,7 @@ services:
       - public-net
       - app-net
     restart: unless-stopped
-    user: "101:101"
+    # user: "101:101"
 
   # Go API Service
   api:
@@ -82,12 +82,17 @@ services:
       - "log_connections=on"
       - "-c"
       - "log_line_prefix=%t [%p] %u@%d "
+      - "-c"
+      - "ssl=on"
+      - "-c"
+      - "ssl_cert_file=/var/lib/postgresql/data/server.crt"
+      - "-c"
+      - "ssl_key_file=/var/lib/postgresql/data/server.key"
     secrets:
       - postgres_db
       - postgres_user
       - postgres_password
     environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
@@ -136,11 +141,10 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       # SMTP Configuration
       - GF_SMTP_ENABLED=true
-      - GF_SMTP_HOST=smtp.gmail.com:587
-      - GF_SMTP_USER__FILE=/run/secrets/grafana_smtp_user
-      - GF_SMTP_PASSWORD__FILE=/run/secrets/grafana_smtp_password
-      # [FIXED] Changed from specific email to a generic placeholder or variable
-      - GF_SMTP_FROM_ADDRESS=no-reply@example.com
+      - GF_SMTP_HOST=${SMTP_HOST}:${SMTP_PORT}
+      - GF_SMTP_USER=${SMTP_USER}
+      - GF_SMTP_PASSWORD=${SMTP_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=${SMTP_FROM}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning/:/etc/grafana/provisioning/
@@ -200,7 +204,7 @@ services:
   tempo:
     image: grafana/tempo:latest
     container_name: go-api-tempo
-    user: "10001:10001"
+    # user: "10001:10001"
     command: ["-config.file=/etc/tempo/tempo-config.yml"]
     ports:
       - "3200:3200"

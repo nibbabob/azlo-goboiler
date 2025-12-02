@@ -30,8 +30,8 @@ openssl req -x509 -nodes -newkey rsa:2048 \
 
 # Set restrictive permissions (read/write for owner only)
 # This mimics production security best practices
-chmod 600 "$KEY_FILE"
 chmod 644 "$CERT_FILE"
+chmod 644 "$KEY_FILE"
 
 echo ""
 echo "✅ Certificates generated successfully!"

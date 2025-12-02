@@ -6,7 +6,7 @@ SRC_CERT="/etc/ssl/certs/cert.pem"
 SRC_KEY="/etc/ssl/certs/key.pem"
 
 # The data directory is the standard location for postgres data
-PG_DATA_DIR="/var/lib/postgresql/data/pgdata"
+PG_DATA_DIR="/var/lib/postgresql/data"
 DEST_CERT="${PG_DATA_DIR}/server.crt"
 DEST_KEY="${PG_DATA_DIR}/server.key"
 CONF_FILE="${PG_DATA_DIR}/postgresql.conf"
