@@ -4,12 +4,12 @@ apiVersion: 1
 datasources:
   - name: Prometheus
     type: prometheus
-    uid: prometheus_ds # A unique ID
+    uid: prometheus_ds
     access: proxy
     url: http://prometheus:9090
     jsonData:
       httpMethod: GET
-    isDefault: true # Make this the default for metrics
+    isDefault: true
 
   - name: Loki
     type: loki
@@ -17,10 +17,9 @@ datasources:
     access: proxy
     url: http://loki:3100
     jsonData:
-      # Link this to Prometheus
       derivedFields:
-        - datasourceUid: 'prometheus_ds'
-          matcherRegex: 'traceID=(\w+)'
+        - datasourceUid: 'tempo_ds'
+          matcherRegex: 'trace_id=(\w+)' 
           name: 'TraceID'
           url: '$${__value.raw}'
 
@@ -30,12 +29,11 @@ datasources:
     access: proxy
     url: http://tempo:3200
     jsonData:
-      # Link this to Loki
       tracesToLogs:
         traceQLStreaming: false
         datasourceUid: 'loki_ds'
         tags: ['job', 'instance']
-        mappedTags: [{ key: 'service.name', value: 'job' }]
+        mappedTags: [{ key: 'service.name', value: 'job' }] 
         spanStartTimeShift: '1h'
         spanEndTimeShift: '1h'
         filterByTraceID: true

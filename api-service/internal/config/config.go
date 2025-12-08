@@ -89,7 +89,7 @@ func Load() (config Config, err error) {
 	}
 
 	// Universal Defaults
-	viper.SetDefault("CORS_ALLOWED_ORIGINS", []string{"http://localhost:3000"})
+	viper.SetDefault("CORS_ALLOWED_ORIGINS", []string{"https://localhost", "https://localhost:443"})
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", 5432)
 	viper.SetDefault("DB_SSL_MODE", "disable")

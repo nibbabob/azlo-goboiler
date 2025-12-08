@@ -26,13 +26,13 @@ func InitTracerProvider(endpoint string) (*trace.TracerProvider, error) {
 	}
 
 	// Create a new resource to identify this application
-	// "go-api-service" will show up in Grafana
+	// "go-api" will show up in Grafana
 	res, err := resource.Merge(
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("go-api-service"),
-			semconv.ServiceVersion("1.0.0"),
+			semconv.ServiceName("go-api"),
+			semconv.ServiceVersion("1.0.1"),
 		),
 	)
 	if err != nil {

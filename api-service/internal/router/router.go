@@ -56,7 +56,7 @@ func Setup(app *config.Application) http.Handler {
 	router.Use(c.Handler)
 
 	router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("https://localhost/swagger/doc.json"), // Path to your json
+		httpSwagger.URL("/swagger/doc.json"),
 	))
 	// Health and monitoring routes (no authentication required)
 	router.HandleFunc("/health", h.Health).Methods("GET")
