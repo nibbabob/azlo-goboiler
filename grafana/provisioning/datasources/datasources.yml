@@ -1,4 +1,3 @@
-# /grafana/provisioning/datasources/datasources.yml
 apiVersion: 1
 
 datasources:
@@ -6,20 +5,20 @@ datasources:
     type: prometheus
     uid: prometheus_ds
     access: proxy
-    url: http://prometheus:9090
+    url: http://prometheus:9090 # Matches service name 'prometheus'
+    isDefault: true
     jsonData:
       httpMethod: GET
-    isDefault: true
 
   - name: Loki
     type: loki
     uid: loki_ds
     access: proxy
-    url: http://loki:3100
+    url: http://loki:3100 # Matches service name 'loki'
     jsonData:
       derivedFields:
         - datasourceUid: 'tempo_ds'
-          matcherRegex: '"trace_id":"(\w+)"'
+          matcherRegex: 'trace_id=(\w+)'
           name: 'TraceID'
           url: '$${__value.raw}'
 
@@ -27,13 +26,12 @@ datasources:
     type: tempo
     uid: tempo_ds
     access: proxy
-    url: http://tempo:3200
+    url: http://tempo:3200 # Matches service name 'tempo'
     jsonData:
       tracesToLogs:
-        traceQLStreaming: false
         datasourceUid: 'loki_ds'
         tags: ['job', 'instance']
-        mappedTags: [{ key: 'service.name', value: 'job' }] 
+        mappedTags: [{ key: 'service.name', value: 'job' }]
+        filterByTraceID: true
         spanStartTimeShift: '1h'
         spanEndTimeShift: '1h'
-        filterByTraceID: true

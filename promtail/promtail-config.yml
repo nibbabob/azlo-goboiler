@@ -1,4 +1,3 @@
-# promtail/promtail-config.yml
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -13,15 +12,17 @@ scrape_configs:
 - job_name: docker
   docker_sd_configs:
     - host: unix:///var/run/docker.sock
-      filters:
-        - name: network
-          values: [app-net, db-net]
+      refresh_interval: 5s
+      # No 'filters' section here ensures we see all containers in dev
+
   relabel_configs:
-    # Use the container name as the 'job' label
+    # 1. Use the container name (e.g., 'go-api') as the 'job' label
+    # This matches the query {job="go-api"} in your dashboard
     - source_labels: ['__meta_docker_container_name']
       regex: '/(.*)'
       target_label: 'job'
-    # Use the container name as the 'instance' label
+
+    # 2. Also keep it as 'container' for clarity
     - source_labels: ['__meta_docker_container_name']
       regex: '/(.*)'
-      target_label: 'instance'
+      target_label: 'container'
