@@ -1,0 +1,31 @@
+# otel-collector/config.prod.yml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          # In prod, restrict this to your actual domain(s)
+          allowed_origins:
+            - "https://your-production-domain.com"
+            - "https://localhost" 
+
+exporters:
+  otlphttp/tempo:
+    endpoint: "http://tempo:4318"
+    tls:
+      insecure: true
+
+  otlphttp/loki:
+    endpoint: "http://loki:3100/otlp/v1/logs"
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlphttp/tempo]
+    logs:
+      receivers: [otlp]
+      exporters: [otlphttp/loki]

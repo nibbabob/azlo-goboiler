@@ -1,0 +1,16 @@
+# prometheus/prometheus.prod.yml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'go-api'
+    metrics_path: /metrics
+    dns_sd_configs:
+      - names:
+          - 'tasks.api' # Special DNS entry in Swarm that returns IPs of all replicas
+        type: 'A'
+        port: 8080

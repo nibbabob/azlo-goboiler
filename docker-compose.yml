@@ -188,7 +188,6 @@ services:
     networks:
       - app-net
       - db-net
-
   # OpenTelemetry Collector
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
