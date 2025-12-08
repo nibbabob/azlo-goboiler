@@ -10,12 +10,11 @@ import (
 // --- Helper Functions ---
 
 func getRequestID(ctx context.Context) string {
-	if requestID, ok := ctx.Value("request_id").(string); ok {
+	if requestID, ok := ctx.Value(config.RequestIDKey).(string); ok {
 		return requestID
 	}
 	return "unknown"
 }
-
 func writeJSON(w http.ResponseWriter, app *config.Application, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

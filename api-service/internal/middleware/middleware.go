@@ -54,9 +54,9 @@ func (mw *Middleware) RequestID(next http.Handler) http.Handler {
 			requestID = uuid.New().String()
 		}
 
-		ctx := context.WithValue(r.Context(), "request_id", requestID)
-		w.Header().Set("X-Request-ID", requestID)
+		ctx := context.WithValue(r.Context(), config.RequestIDKey, requestID)
 
+		w.Header().Set("X-Request-ID", requestID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -322,17 +322,25 @@ func (mw *Middleware) RateLimit(next http.Handler) http.Handler {
 // --- ENHANCED SECURITY MIDDLEWARE ---
 func Security(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Security headers
+		// Standard Security Headers (Apply to everything)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'")
-
-		// Remove server information
 		w.Header().Set("Server", "")
+
+		// --- DYNAMIC CONTENT SECURITY POLICY ---
+		// Default Strict Policy (For API and App) - Blocks inline scripts
+		csp := "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+
+		// Relaxed Policy (ONLY for Swagger UI) - Allows inline scripts
+		if strings.HasPrefix(r.URL.Path, "/swagger/") {
+			csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+		}
+
+		w.Header().Set("Content-Security-Policy", csp)
 
 		next.ServeHTTP(w, r)
 	})
@@ -372,7 +380,7 @@ func (mw *Middleware) Timeout(timeout time.Duration) func(http.Handler) http.Han
 // --- HELPER FUNCTIONS ---
 
 func getRequestID(ctx context.Context) string {
-	if requestID, ok := ctx.Value("request_id").(string); ok {
+	if requestID, ok := ctx.Value(config.RequestIDKey).(string); ok {
 		return requestID
 	}
 	return "unknown"

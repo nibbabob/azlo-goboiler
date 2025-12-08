@@ -27,11 +27,30 @@ import (
 
 var (
 	// Version information (set during build)
-	version   = "1.0.0"
+	version   = "1.0.1"
 	buildTime = "unknown"
 	gitCommit = "unknown"
 )
 
+// @title           Azlo Go Boilerplate API
+// @version         1.0.1
+// @description     Production-ready SaaS starter kit API.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost
+// @BasePath  /
+// @schemes   https
+
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
 func main() {
 	// Initialize logger first
 	logger := initLogger()

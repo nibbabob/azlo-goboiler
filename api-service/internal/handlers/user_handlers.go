@@ -13,7 +13,14 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-// Protected verifies the user can access the route and returns their profile info
+// Protected verifies user access and returns profile
+// @Summary      Test protected endpoint
+// @Description  Simple check to verify JWT authentication is working
+// @Tags         profile
+// @Security     Bearer
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /api/v1/protected [get]
 func (h *Handlers) Protected(w http.ResponseWriter, r *http.Request) {
 	tracer := otel.Tracer("handlers")
 	ctx, span := tracer.Start(r.Context(), "Handlers.Protected")
@@ -42,7 +49,16 @@ func (h *Handlers) Protected(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, h.app, data, "Access granted")
 }
 
-// GetUsers handles GET /api/v1/users with pagination
+// GetUsers retrieves paginated list of users
+// @Summary      List users
+// @Description  Get a paginated list of active users (Admin utility)
+// @Tags         admin
+// @Security     Bearer
+// @Param        page  query     int  false  "Page number"
+// @Param        limit query     int  false  "Items per page"
+// @Produce      json
+// @Success      200  {object}  []models.User
+// @Router       /api/v1/users [get]
 func (h *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -61,6 +77,13 @@ func (h *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetProfile handles GET /api/v1/profile
+// @Summary      Get current profile
+// @Description  Retrieves detailed profile information for the authenticated user
+// @Tags         profile
+// @Produce      json
+// @Security     Bearer
+// @Success      200  {object}  models.User
+// @Router       /api/v1/profile [get]
 func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(config.UserIDKey).(string)
 
@@ -74,6 +97,15 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateProfile handles PUT /api/v1/profile
+// @Summary      Update profile info
+// @Description  Updates username or email for the current user
+// @Tags         profile
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request body models.UpdateUserRequest true "Update Data"
+// @Success      200  {object}  map[string]string "user_id"
+// @Router       /api/v1/profile [put]
 func (h *Handlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(config.UserIDKey).(string)
 
@@ -98,6 +130,16 @@ func (h *Handlers) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // ChangePassword handles PUT /api/v1/password
+// @Summary      Change user password
+// @Description  Verifies current password and updates to a new one
+// @Tags         profile
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request body models.ChangePasswordRequest true "Password Request"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      401  {object}  map[string]string "Current password incorrect"
+// @Router       /api/v1/password [put]
 func (h *Handlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(config.UserIDKey).(string)
 
@@ -126,6 +168,13 @@ func (h *Handlers) ChangePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPreferences handles GET /api/v1/preferences
+// @Summary      Get user preferences
+// @Description  Retrieves current logged-in user preferences
+// @Tags         preferences
+// @Produce      json
+// @Security     Bearer
+// @Success      200  {object}  models.UserPreferences
+// @Router       /api/v1/preferences [get]
 func (h *Handlers) GetPreferences(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(config.UserIDKey).(string)
 
@@ -140,6 +189,17 @@ func (h *Handlers) GetPreferences(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdatePreferences handles PUT /api/v1/preferences
+// @Summary      Update user preferences
+// @Description  Allows the user to set email notification status and digest frequency
+// @Tags         preferences
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request body models.UserPreferences true "Preference Settings"
+// @Success      200  {object}  models.UserPreferences
+// @Failure      400  {object}  map[string]string "Invalid request"
+// @Failure      500  {object}  map[string]string "Server error"
+// @Router       /api/v1/preferences [put]
 func (h *Handlers) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(config.UserIDKey).(string)
 

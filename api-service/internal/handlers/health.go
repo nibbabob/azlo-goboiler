@@ -117,7 +117,14 @@ func (h *Handlers) HealthDetailed(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, h.app, statusCode, health["status"] == "healthy", health, "Detailed health check complete")
 }
 
-// GetDatabaseStats provides database statistics (admin only)
+// GetDatabaseStats retrieves DB connection info
+// @Summary      Database Statistics
+// @Description  Get internal database connection pool stats
+// @Tags         admin
+// @Security     Bearer
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /api/v1/admin/db-stats [get]
 func (h *Handlers) GetDatabaseStats(w http.ResponseWriter, r *http.Request) {
 	// In production, you might want to add admin role checking here
 	stats := database.GetConnectionStats(h.app.DB)

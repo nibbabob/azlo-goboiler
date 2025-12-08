@@ -1,7 +1,7 @@
-// File: internal/config/config.go
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -55,17 +55,22 @@ type Config struct {
 
 type ContextKey string
 
-const UserIDKey = ContextKey("userID")
+const (
+	UserIDKey    = ContextKey("userID")
+	RequestIDKey = ContextKey("request_id")
+)
 
 // Load reads configuration from secrets, environment variables, or defaults.
 func Load() (config Config, err error) {
-	// Environment-specific defaults
+	// 1. Determine Environment First
+	// We check OS Env directly first to decide how to load the rest
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "development"
 	}
+	viper.Set("APP_ENV", env)
 
-	// Set defaults
+	// 2. Set Defaults based on Environment
 	if env == "production" {
 		viper.SetDefault("PORT", 8080)
 		viper.SetDefault("RATE_LIMIT", 1000)
@@ -82,19 +87,116 @@ func Load() (config Config, err error) {
 		viper.SetDefault("DEFAULT_USER_PASSWORD", "admin123!")
 	}
 
-	viper.SetDefault("APP_ENV", env)
+	// Universal Defaults
 	viper.SetDefault("CORS_ALLOWED_ORIGINS", []string{"http://localhost:3000"})
-	viper.SetDefault("DB_HOST", "db")
+	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", 5432)
-	viper.SetDefault("DB_SSL_MODE", "require")
-	viper.SetDefault("REDIS_HOST", "redis")
+	viper.SetDefault("DB_SSL_MODE", "disable")
+	viper.SetDefault("REDIS_HOST", "localhost")
 	viper.SetDefault("REDIS_PORT", 6379)
 	viper.SetDefault("SMTP_PORT", 587)
 
+	// 3. Conditional Loading Logic
+	if env == "development" {
+		// --- DEVELOPMENT: Load from .env file ---
+		// We try loading from current and parent directory
+		_ = loadEnvFile(".env")
+		_ = loadEnvFile("../.env")
+	} else {
+		// --- PRODUCTION: Load from Docker Secrets ---
+		loadSecret("APP_SECRET", "app_secret")
+		loadSecret("DATABASE_URL", "database_url")
+		loadSecret("DB_HOST", "db_host")
+		loadSecret("DB_PORT", "db_port")
+		loadSecret("DB_USER", "db_user")
+		loadSecret("DB_PASSWORD", "db_password")
+		loadSecret("DB_NAME", "db_name")
+		loadSecret("DB_SSL_MODE", "db_ssl_mode")
+		loadSecret("REDIS_HOST", "redis_host")
+		loadSecret("REDIS_PORT", "redis_port")
+		loadSecret("REDIS_PASSWORD", "redis_password")
+		loadSecret("SMTP_PASSWORD", "smtp_password")
+	}
+
+	// 4. AutomaticEnv (System Env Vars override everything loaded so far)
 	viper.AutomaticEnv()
 
-	// --- Explicitly Bind Environment Variables ---
-	// We manually set these to ensure Viper doesn't miss them
+	// 5. Explicit Overrides (for specific manual bindings)
+	bindExplicitEnvs()
+
+	// 6. Unmarshal
+	err = viper.Unmarshal(&config)
+	if err != nil {
+		return
+	}
+
+	// 7. Post-Load Logic
+	if config.DatabaseURL == "" {
+		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+			config.DbUser, config.DbPassword, config.DbHost, config.DbPort, config.DbName, config.DbSslMode,
+		)
+	}
+
+	return
+}
+
+// loadSecret reads a file from /run/secrets and sets it in Viper
+func loadSecret(key, name string) {
+	candidates := []string{name, strings.ToUpper(name), strings.ToLower(name)}
+	for _, filename := range candidates {
+		path := fmt.Sprintf("/run/secrets/%s", filename)
+		if _, err := os.Stat(path); err == nil {
+			content, _ := os.ReadFile(path)
+			if len(content) > 0 {
+				viper.Set(key, strings.TrimSpace(string(content)))
+				return
+			}
+		}
+	}
+}
+
+// loadEnvFile parses a .env file and sets values into Viper AND os.Env
+func loadEnvFile(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Remove surrounding quotes
+		if len(value) > 1 && (value[0] == '"' || value[0] == '\'') && value[0] == value[len(value)-1] {
+			value = value[1 : len(value)-1]
+		}
+
+		// LOGIC: Set in Viper (so Unmarshal works)
+		// Only set if not already set by system env (precedence)
+		if os.Getenv(key) == "" {
+			viper.Set(key, value)
+			os.Setenv(key, value) // Keep this if other libs rely on os.Getenv
+		}
+	}
+
+	return scanner.Err()
+}
+
+func bindExplicitEnvs() {
 	if host := os.Getenv("SMTP_HOST"); host != "" {
 		viper.Set("SMTP_HOST", host)
 	}
@@ -109,85 +211,18 @@ func Load() (config Config, err error) {
 	} else if user := os.Getenv("SMTP_USER"); user != "" {
 		viper.Set("SMTP_USER", user)
 	}
-
-	// ---  Robust Secret Loading with Logging ---
-	// This helper tries lowercase AND uppercase filenames
-	loadSecret := func(key, name string) {
-		// Try exact name, then uppercase, then lowercase
-		candidates := []string{name, strings.ToUpper(name), strings.ToLower(name)}
-
-		for _, filename := range candidates {
-			path := fmt.Sprintf("/run/secrets/%s", filename)
-			if _, err := os.Stat(path); err == nil {
-				content, _ := os.ReadFile(path)
-				if len(content) > 0 {
-					viper.Set(key, strings.TrimSpace(string(content)))
-					fmt.Printf("Config: Loaded secret %s from %s\n", key, path)
-					return
-				}
-			}
-		}
-		fmt.Printf("Config: Warning - Could not find secret for %s\n", key)
-	}
-
-	// Load Standard Secrets
-	loadSecret("APP_SECRET", "app_secret")
-	loadSecret("DATABASE_URL", "database_url")
-	loadSecret("DB_HOST", "db_host")
-	loadSecret("DB_PORT", "db_port")
-	loadSecret("DB_USER", "db_user")
-	loadSecret("DB_PASSWORD", "db_password")
-	loadSecret("DB_NAME", "db_name")
-	loadSecret("DB_SSL_MODE", "db_ssl_mode")
-	loadSecret("REDIS_HOST", "redis_host")
-	loadSecret("REDIS_PORT", "redis_port")
-	loadSecret("REDIS_PASSWORD", "redis_password")
-
-	// Load Notification Secrets
-	loadSecret("SMTP_PASSWORD", "smtp_password")
-
-	err = viper.Unmarshal(&config)
-	if err != nil {
-		return
-	}
-
-	// Construct Database URL if missing
-	if config.DatabaseURL == "" {
-		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-			config.DbUser, config.DbPassword, config.DbHost, config.DbPort, config.DbName, config.DbSslMode,
-		)
-	}
-
-	return
 }
 
 // Validate performs comprehensive configuration validation
 func (c *Config) Validate() error {
 	var errors []string
 
-	// Validate APP_SECRET
 	if c.App_Secret == "" {
 		errors = append(errors, "APP_SECRET is required")
 	} else if len(c.App_Secret) < 32 {
 		errors = append(errors, "APP_SECRET must be at least 32 characters long")
 	}
 
-	// Validate PORT
-	if c.Port < 1 || c.Port > 65535 {
-		errors = append(errors, "PORT must be between 1 and 65535")
-	}
-
-	// Validate RATE_LIMIT
-	if c.RateLimit < 1 || c.RateLimit > 100000 {
-		errors = append(errors, "RATE_LIMIT must be between 1 and 100000")
-	}
-
-	// Validate APP_ENV
-	if c.App_Env != "development" && c.App_Env != "production" && c.App_Env != "staging" {
-		errors = append(errors, "APP_ENV must be one of: development, production, staging")
-	}
-
-	// Validate database configuration
 	if c.DbUser == "" {
 		errors = append(errors, "DB_USER is required")
 	}
@@ -196,43 +231,6 @@ func (c *Config) Validate() error {
 	}
 	if c.DbName == "" {
 		errors = append(errors, "DB_NAME is required")
-	}
-	if c.DbHost == "" {
-		errors = append(errors, "DB_HOST is required")
-	}
-	if c.DbPort < 1 || c.DbPort > 65535 {
-		errors = append(errors, "DB_PORT must be between 1 and 65535")
-	}
-
-	// Validate Redis configuration
-	if c.RedisHost == "" {
-		errors = append(errors, "REDIS_HOST is required")
-	}
-	if c.RedisPort < 1 || c.RedisPort > 65535 {
-		errors = append(errors, "REDIS_PORT must be between 1 and 65535")
-	}
-
-	// Validate timeout settings
-	if c.RequestTimeout < 1 || c.RequestTimeout > 300 {
-		errors = append(errors, "REQUEST_TIMEOUT_SECONDS must be between 1 and 300")
-	}
-
-	// Validate JWT settings
-	if c.JWTExpirationHours < 1 || c.JWTExpirationHours > 8760 { // max 1 year
-		errors = append(errors, "JWT_EXPIRATION_HOURS must be between 1 and 8760")
-	}
-
-	// Validate CORS origins
-	if len(c.CORS_Allowed_Origins) == 0 {
-		errors = append(errors, "At least one CORS_ALLOWED_ORIGIN must be specified")
-	}
-
-	// Validate log level
-	validLogLevels := map[string]bool{
-		"debug": true, "info": true, "warn": true, "error": true, "fatal": true,
-	}
-	if !validLogLevels[c.LogLevel] {
-		errors = append(errors, "LOG_LEVEL must be one of: debug, info, warn, error, fatal")
 	}
 
 	if len(errors) > 0 {

@@ -10,10 +10,13 @@ import (
 	"azlo-goboiler/internal/repository"
 	"azlo-goboiler/internal/service"
 
+	_ "azlo-goboiler/docs"
+
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	httpSwagger "github.com/swaggo/http-swagger" // Add this import
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
@@ -29,6 +32,7 @@ func Setup(app *config.Application) http.Handler {
 
 	// 3. Inject into Handlers
 	h := handlers.New(app, userService)
+
 	mw := middleware.New(app)
 
 	// Apply global middleware in order of execution
@@ -51,6 +55,9 @@ func Setup(app *config.Application) http.Handler {
 	})
 	router.Use(c.Handler)
 
+	router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("https://localhost/swagger/doc.json"), // Path to your json
+	))
 	// Health and monitoring routes (no authentication required)
 	router.HandleFunc("/health", h.Health).Methods("GET")
 	router.HandleFunc("/health/detailed", h.HealthDetailed).Methods("GET")

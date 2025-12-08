@@ -98,7 +98,7 @@ func ConnectDBWithConfig(dsn string, dbConfig *DatabaseConfig) (*pgxpool.Pool, e
 
 // InitializeSchema creates the necessary database tables
 func InitializeSchema(db *pgxpool.Pool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	// --- Create Schemas ---

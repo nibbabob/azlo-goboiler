@@ -8,7 +8,18 @@ import (
 	"time"
 )
 
-// Register handles user registration via the Service layer
+// Register godoc
+// @Summary      Register a new user
+// @Description  Creates a new user account with username, email, and password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body models.RegisterRequest true "Registration Info"
+// @Success      200  {object}  models.RegisterResponse
+// @Failure      400  {object}  map[string]string "Invalid request"
+// @Failure      409  {object}  map[string]string "User already exists"
+// @Failure      500  {object}  map[string]string "Internal server error"
+// @Router       /auth/register [post]
 func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 	requestID := getRequestID(r.Context())
 
