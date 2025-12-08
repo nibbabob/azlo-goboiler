@@ -76,3 +76,9 @@ type PaginationMetadata struct {
 	HasNext    bool `json:"has_next"`
 	HasPrev    bool `json:"has_prev"`
 }
+
+// IsHealthy returns true if the user account is active.
+// Logic belongs here in the domain model rather than the database query.
+func (u *User) IsHealthy() bool {
+	return u.IsActive
+}

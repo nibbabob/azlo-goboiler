@@ -19,6 +19,33 @@ func NewUserRepository(db *pgxpool.Pool) core.UserRepository {
 	return &PostgresUserRepository{db: db}
 }
 
+// dbUser is a DTO (Data Transfer Object) specifically for Postgres mapping.
+// This allows the domain 'User' struct to remain "clean".
+type dbUser struct {
+	ID           string     `db:"id"`
+	Username     string     `db:"username"`
+	Email        string     `db:"email"`
+	PasswordHash string     `db:"password_hash"`
+	IsActive     bool       `db:"is_active"`
+	CreatedAt    time.Time  `db:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at"`
+	LastLogin    *time.Time `db:"last_login"`
+}
+
+// toDomain converts the database object back into a business entity.
+func (dbu *dbUser) toDomain() *models.User {
+	return &models.User{
+		ID:           dbu.ID,
+		Username:     dbu.Username,
+		Email:        dbu.Email,
+		PasswordHash: dbu.PasswordHash,
+		IsActive:     dbu.IsActive,
+		CreatedAt:    dbu.CreatedAt,
+		UpdatedAt:    dbu.UpdatedAt,
+		LastLogin:    dbu.LastLogin,
+	}
+}
+
 // --- Auth & Basic ---
 
 func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) error {
@@ -31,20 +58,20 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) 
 }
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
-	var user models.User
+	var dbu dbUser // Map into internal DB-tagged struct first
 	query := `
 		SELECT id, username, email, password_hash, is_active, created_at, updated_at, last_login 
 		FROM auth.users WHERE id = $1 AND is_active = true`
+
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.IsActive, &user.CreatedAt, &user.UpdatedAt, &user.LastLogin)
+		&dbu.ID, &dbu.Username, &dbu.Email, &dbu.PasswordHash,
+		&dbu.IsActive, &dbu.CreatedAt, &dbu.UpdatedAt, &dbu.LastLogin)
+
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("user not found")
-		}
 		return nil, err
 	}
-	return &user, nil
+
+	return dbu.toDomain(), nil // Return the clean domain model
 }
 
 func (r *PostgresUserRepository) GetByEmailOrUsername(ctx context.Context, email, username string) (*models.User, error) {

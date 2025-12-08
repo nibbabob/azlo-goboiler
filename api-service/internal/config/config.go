@@ -101,7 +101,6 @@ func Load() (config Config, err error) {
 		// --- DEVELOPMENT: Load from .env file ---
 		// We try loading from current and parent directory
 		_ = loadEnvFile(".env")
-		_ = loadEnvFile("../.env")
 	} else {
 		// --- PRODUCTION: Load from Docker Secrets ---
 		loadSecret("APP_SECRET", "app_secret")
