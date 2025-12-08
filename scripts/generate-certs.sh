@@ -28,9 +28,8 @@ openssl req -x509 -nodes -newkey rsa:2048 \
     -subj "/C=US/ST=Dev/L=Local/O=Dev/OU=IT/CN=localhost" \
     -addext "subjectAltName = DNS:localhost,IP:127.0.0.1"
 
-# Set restrictive permissions (read/write for owner only)
-# This mimics production security best practices
-chmod 600 "$KEY_FILE"
+# Set readable permissions (644) so the container user (UID 101) can read it
+chmod 644 "$KEY_FILE"
 chmod 644 "$CERT_FILE"
 
 echo ""

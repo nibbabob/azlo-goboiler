@@ -1,0 +1,15 @@
+/* Hide the Swagger header bar */
+.swagger-ui .topbar { 
+    display: none; 
+}
+
+/* Change the background of the entire UI */
+body {
+    background-color: #0f172a !important;
+}
+
+/* Change the background of the auth lock icon */
+.swagger-ui .auth-wrapper .authorize {
+    background-color: #06b6d4;
+    border-color: #06b6d4;
+}
