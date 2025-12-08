@@ -17,6 +17,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
 )
 
@@ -72,6 +73,10 @@ func (mw *Middleware) Logging(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
+		// Get Trace ID from OTel span
+		span := trace.SpanFromContext(r.Context())
+		traceID := span.SpanContext().TraceID().String()
+
 		// Log request with detailed information
 		logEvent := mw.app.Logger.Info()
 
@@ -86,6 +91,7 @@ func (mw *Middleware) Logging(next http.Handler) http.Handler {
 
 		logEvent.
 			Str("request_id", requestID).
+			Str("trace_id", traceID).
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Str("query", r.URL.RawQuery).

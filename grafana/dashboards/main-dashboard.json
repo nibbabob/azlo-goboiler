@@ -14,7 +14,7 @@
       "datasource": "prometheus_ds",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"go-api\"}[5m])) by (code)"
+          "expr": "sum(rate(http_request_duration_seconds_count{job=\"go-api\"}[5m])) by (code)"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
@@ -37,7 +37,7 @@
       "targets": [
         {
           "serviceMap": { "datasourceUid": "tempo_ds" },
-          "query": "{.service.name=\"go-api-service\"}"
+          "query": "{.service.name=\"go-api\"}"
         }
       ],
       "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 }
