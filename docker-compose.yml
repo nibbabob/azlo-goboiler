@@ -172,9 +172,11 @@ services:
 
   # Tempo (Tracing)
   tempo:
-    image: grafana/tempo:latest
+    build:
+      context: .
+      dockerfile: tempo/Dockerfile
     container_name: go-api-tempo
-    user: "10001:10001"
+    # No "user: root" needed! Use the secure user defined in Dockerfile.
     command: ["-config.file=/etc/tempo/tempo-config.yml"]
     ports:
       - "3200:3200"

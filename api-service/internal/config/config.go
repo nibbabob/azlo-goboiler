@@ -36,6 +36,7 @@ type Config struct {
 	DbPassword           string   `mapstructure:"DB_PASSWORD"`
 	DbName               string   `mapstructure:"DB_NAME"`
 	DbSslMode            string   `mapstructure:"DB_SSL_MODE"`
+	OtelEndpoint         string   `mapstructure:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 	RedisHost            string   `mapstructure:"REDIS_HOST"`
 	RedisPort            int      `mapstructure:"REDIS_PORT"`
 	RedisPassword        string   `mapstructure:"REDIS_PASSWORD"`
@@ -95,6 +96,7 @@ func Load() (config Config, err error) {
 	viper.SetDefault("REDIS_HOST", "localhost")
 	viper.SetDefault("REDIS_PORT", 6379)
 	viper.SetDefault("SMTP_PORT", 587)
+	viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4318")
 
 	// 3. Conditional Loading Logic
 	if env == "development" {

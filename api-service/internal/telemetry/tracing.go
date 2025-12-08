@@ -14,14 +14,12 @@ import (
 )
 
 // InitTracerProvider initializes and returns a new OpenTelemetry TracerProvider.
-func InitTracerProvider() (*trace.TracerProvider, error) {
+func InitTracerProvider(endpoint string) (*trace.TracerProvider, error) {
 	ctx := context.Background()
 
-	// Configure an OTLP/HTTP exporter to send traces to Tempo.
-	// The endpoint matches the Tempo service in your docker-compose.yml.
 	exporter, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint("tempo:4318"), // Tempo's OTLP/HTTP port
-		otlptracehttp.WithInsecure(),             // Use http instead of https
+		otlptracehttp.WithEndpoint(endpoint), // Now uses the injected variable
+		otlptracehttp.WithInsecure(),
 	)
 	if err != nil {
 		return nil, err

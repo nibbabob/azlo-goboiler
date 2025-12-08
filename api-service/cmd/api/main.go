@@ -130,7 +130,7 @@ func main() {
 	defer db.Close()
 
 	// Initialize OpenTelemetry Tracer
-	tp, err := telemetry.InitTracerProvider()
+	tp, err := telemetry.InitTracerProvider(cfg.OtelEndpoint)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize TracerProvider")
 	}

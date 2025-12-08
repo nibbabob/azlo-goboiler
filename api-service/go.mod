@@ -1,6 +1,6 @@
 module azlo-goboiler
 
-go 1.24.4
+go 1.25.4
 
 require (
 	github.com/exaring/otelpgx v0.9.3
