@@ -47,3 +47,32 @@ type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required"`
 	NewPassword     string `json:"new_password" validate:"required,min=8,max=128,password"`
 }
+
+// RegisterResponse is what the service returns on success
+type RegisterResponse struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+// LoginResponse is what the service returns on success
+type LoginResponse struct {
+	Token     string      `json:"token"` // Only if you decide to return it in body
+	ExpiresAt int64       `json:"expires_at"`
+	User      UserSummary `json:"user"`
+}
+
+type UserSummary struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+type PaginationMetadata struct {
+	Page       int  `json:"page"`
+	Limit      int  `json:"limit"`
+	TotalCount int  `json:"total_count"`
+	TotalPages int  `json:"total_pages"`
+	HasNext    bool `json:"has_next"`
+	HasPrev    bool `json:"has_prev"`
+}

@@ -7,6 +7,8 @@ import (
 	"azlo-goboiler/internal/config"
 	"azlo-goboiler/internal/handlers"
 	"azlo-goboiler/internal/middleware"
+	"azlo-goboiler/internal/repository"
+	"azlo-goboiler/internal/service"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,8 +20,15 @@ import (
 func Setup(app *config.Application) http.Handler {
 	router := mux.NewRouter()
 
-	// Create instances of handlers and middleware
-	h := handlers.New(app)
+	// --- Dependency Injection Wiring ---
+	// 1. Create Repository
+	userRepo := repository.NewUserRepository(app.DB)
+
+	// 2. Create Service
+	userService := service.NewUserService(userRepo, &app.Config)
+
+	// 3. Inject into Handlers
+	h := handlers.New(app, userService)
 	mw := middleware.New(app)
 
 	// Apply global middleware in order of execution
