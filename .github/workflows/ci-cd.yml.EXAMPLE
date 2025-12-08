@@ -5,20 +5,18 @@ on:
     branches:
       - main        # Deploy to prod
       - development # Build for testing
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
 
-# --- CRITICAL: This env block MUST be here at the root level ---
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-# -------------------------------------------------------------
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # Required to push to GHCR
+      packages: write
 
     steps:
       - name: Check out code
@@ -31,14 +29,13 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          # SWITCH BACK TO YOUR SECRETS (Acting as YOU, not the bot)
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # ======================================================
       # 1. API SERVICE
       # ======================================================
-      - name: Extract metadata (tags, labels) for API
+      - name: Extract metadata for API
         id: meta-api
         uses: docker/metadata-action@v5
         with:
@@ -59,32 +56,32 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ======================================================
-      # 2. SCRAPER SERVICE
+      # 2. TEMPO SERVICE (New!)
       # ======================================================
-      - name: Extract metadata (tags, labels) for Scraper
-        id: meta-scraper
+      - name: Extract metadata for Tempo
+        id: meta-tempo
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-scraper
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-tempo
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=short
 
-      - name: Build and push Scraper image
+      - name: Build and push Tempo image
         uses: docker/build-push-action@v6
         with:
-          context: ./los-scrapers
-          file: ./los-scrapers/Dockerfile
+          context: . # Root context required to access ./tempo/Dockerfile if needed, or just ./tempo
+          file: ./tempo/Dockerfile
           push: true
-          tags: ${{ steps.meta-scraper.outputs.tags }}
-          labels: ${{ steps.meta-scraper.outputs.labels }}
+          tags: ${{ steps.meta-tempo.outputs.tags }}
+          labels: ${{ steps.meta-tempo.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # ======================================================
       # 3. NGINX (FRONTEND)
       # ======================================================
-      - name: Extract metadata (tags, labels) for Nginx
+      - name: Extract metadata for Nginx
         id: meta-nginx
         uses: docker/metadata-action@v5
         with:
@@ -96,7 +93,6 @@ jobs:
       - name: Build and push Nginx image
         uses: docker/build-push-action@v6
         with:
-          # Context is the repo root so it can copy 'www/' and 'nginx/nginx.conf'
           context: .
           file: ./nginx/Dockerfile
           push: true
@@ -104,21 +100,38 @@ jobs:
           labels: ${{ steps.meta-nginx.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-  
+
+      # (Optional: Add Scraper back here if you have the code for it)
+
   # ======================================================
-  # NEW JOB: UPDATE GIST
+  # JOB: UPDATE GIST CONFIGURATION
   # ======================================================
   update-gist:
     runs-on: ubuntu-latest
+    needs: build-and-push # Only update config if build succeeds
+    if: github.ref == 'refs/heads/main' # Only deploy config on main branch
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Prepare Deployment Files
+        run: |
+          mkdir deploy_package
+          
+          # Copy the main compose file
+          cp docker-compose.prod.yml deploy_package/
+          
+          # Copy the prod config files we created earlier
+          # (Ensure these files exist in your repo!)
+          cp prometheus/prometheus.prod.yml deploy_package/
+          cp promtail/promtail-config.prod.yml deploy_package/
+          cp otel-collector/config.prod.yml deploy_package/
+          cp tempo/tempo-config.prod.yml deploy_package/
+          cp loki/loki-config.prod.yml deploy_package/
+
       - name: Update Gist
         uses: exuanbo/actions-deploy-gist@v1
         with:
-          token: ${{ secrets.DOCKER_PASSWORD }}
+          token: ${{ secrets.DOCKER_PASSWORD }} # Ensure this token has 'gist' scope
           gist_id: ${{ secrets.GIST_ID }}
-          file_path: docker-compose.prod.yml #
-          # Mapping specific files if names differ
-          gist_file_name: docker-compose.prod.yml
+          file_path: deploy_package/ # Pushes ALL files in this folder
