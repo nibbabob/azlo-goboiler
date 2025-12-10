@@ -78,9 +78,6 @@ func Setup(app *config.Application) http.Handler {
 	api.HandleFunc("/profile", h.UpdateProfile).Methods("PUT")
 	api.HandleFunc("/password", h.ChangePassword).Methods("PUT")
 
-	api.HandleFunc("/preferences", h.GetPreferences).Methods("GET")
-	api.HandleFunc("/preferences", h.UpdatePreferences).Methods("PUT")
-
 	// Example protected route
 	api.HandleFunc("/protected", h.Protected).Methods("GET")
 

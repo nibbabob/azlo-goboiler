@@ -46,12 +46,6 @@ type Config struct {
 	JWTExpirationHours   int      `mapstructure:"JWT_EXPIRATION_HOURS"`
 	DefaultUserUsername  string   `mapstructure:"DEFAULT_USER_USERNAME"`
 	DefaultUserPassword  string   `mapstructure:"DEFAULT_USER_PASSWORD"`
-	// Notification Configuration
-	SMTPHost     string `mapstructure:"SMTP_HOST"`
-	SMTPPort     int    `mapstructure:"SMTP_PORT"`
-	SMTPUser     string `mapstructure:"SMTP_USER"`
-	SMTPPassword string `mapstructure:"SMTP_PASSWORD"`
-	SMTPFrom     string `mapstructure:"SMTP_FROM"`
 }
 
 type ContextKey string
@@ -95,7 +89,6 @@ func Load() (config Config, err error) {
 	viper.SetDefault("DB_SSL_MODE", "disable")
 	viper.SetDefault("REDIS_HOST", "localhost")
 	viper.SetDefault("REDIS_PORT", 6379)
-	viper.SetDefault("SMTP_PORT", 587)
 	viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4318")
 
 	// 3. Conditional Loading Logic
@@ -116,16 +109,12 @@ func Load() (config Config, err error) {
 		loadSecret("REDIS_HOST", "redis_host")
 		loadSecret("REDIS_PORT", "redis_port")
 		loadSecret("REDIS_PASSWORD", "redis_password")
-		loadSecret("SMTP_PASSWORD", "smtp_password")
 	}
 
 	// 4. AutomaticEnv (System Env Vars override everything loaded so far)
 	viper.AutomaticEnv()
 
-	// 5. Explicit Overrides (for specific manual bindings)
-	bindExplicitEnvs()
-
-	// 6. Unmarshal
+	// 5. Unmarshal
 	err = viper.Unmarshal(&config)
 	if err != nil {
 		return
@@ -195,23 +184,6 @@ func loadEnvFile(filename string) error {
 	}
 
 	return scanner.Err()
-}
-
-func bindExplicitEnvs() {
-	if host := os.Getenv("SMTP_HOST"); host != "" {
-		viper.Set("SMTP_HOST", host)
-	}
-	if port := os.Getenv("SMTP_PORT"); port != "" {
-		viper.Set("SMTP_PORT", port)
-	}
-	if from := os.Getenv("SMTP_FROM"); from != "" {
-		viper.Set("SMTP_FROM", from)
-	}
-	if user := os.Getenv("ALERT_SMTP_USER"); user != "" {
-		viper.Set("SMTP_USER", user)
-	} else if user := os.Getenv("SMTP_USER"); user != "" {
-		viper.Set("SMTP_USER", user)
-	}
 }
 
 // Validate performs comprehensive configuration validation

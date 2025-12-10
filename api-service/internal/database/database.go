@@ -131,20 +131,6 @@ func InitializeSchema(db *pgxpool.Pool) error {
 		return fmt.Errorf("failed to create users table: %v", err)
 	}
 
-	// User Preferences Table
-	createPreferencesTable := `
-    CREATE TABLE IF NOT EXISTS auth.user_preferences (
-        user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-        email_enabled BOOLEAN DEFAULT false,
-        frequency VARCHAR(20) DEFAULT 'immediate',
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );`
-
-	_, err = db.Exec(ctx, createPreferencesTable)
-	if err != nil {
-		return fmt.Errorf("failed to create user_preferences table: %v", err)
-	}
-
 	// Create indexes for users table
 	userIndexes := []string{
 		"CREATE INDEX IF NOT EXISTS idx_users_email ON auth.users(email);",

@@ -18,10 +18,6 @@ type UserRepository interface {
 	UpdateLastLogin(ctx context.Context, userID string) error
 	List(ctx context.Context, limit, offset int) ([]models.User, error)
 	Count(ctx context.Context) (int, error)
-
-	// Preferences
-	GetPreferences(ctx context.Context, userID string) (*models.UserPreferences, error)
-	UpsertPreferences(ctx context.Context, prefs *models.UserPreferences) error
 }
 
 // UserService defines the business logic.
@@ -35,8 +31,4 @@ type UserService interface {
 	UpdateProfile(ctx context.Context, userID string, req models.UpdateUserRequest) error
 	ChangePassword(ctx context.Context, userID string, req models.ChangePasswordRequest) error
 	GetUsers(ctx context.Context, page, limit int) ([]models.User, *models.PaginationMetadata, error)
-
-	// Preferences
-	GetPreferences(ctx context.Context, userID string) (*models.UserPreferences, error)
-	UpdatePreferences(ctx context.Context, userID string, req models.UserPreferences) error
 }

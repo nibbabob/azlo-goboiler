@@ -139,32 +139,3 @@ func (r *PostgresUserRepository) Count(ctx context.Context) (int, error) {
 	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM auth.users WHERE is_active = true").Scan(&count)
 	return count, err
 }
-
-// --- Preferences ---
-
-func (r *PostgresUserRepository) GetPreferences(ctx context.Context, userID string) (*models.UserPreferences, error) {
-	var prefs models.UserPreferences
-	query := `SELECT email_enabled, frequency FROM auth.user_preferences WHERE user_id = $1`
-	err := r.db.QueryRow(ctx, query, userID).Scan(&prefs.EmailEnabled, &prefs.Frequency)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil // Return nil to indicate no preferences set
-		}
-		return nil, err
-	}
-	// Important: Set UserID since it's not retrieved from the DB row directly
-	prefs.UserID = userID
-	return &prefs, nil
-}
-
-func (r *PostgresUserRepository) UpsertPreferences(ctx context.Context, prefs *models.UserPreferences) error {
-	query := `
-		INSERT INTO auth.user_preferences (user_id, email_enabled, frequency, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (user_id) DO UPDATE SET
-			email_enabled = EXCLUDED.email_enabled,
-			frequency = EXCLUDED.frequency,
-			updated_at = NOW()`
-	_, err := r.db.Exec(ctx, query, prefs.UserID, prefs.EmailEnabled, prefs.Frequency)
-	return err
-}

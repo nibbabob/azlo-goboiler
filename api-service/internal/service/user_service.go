@@ -152,23 +152,3 @@ func (s *UserService) GetUsers(ctx context.Context, page, limit int) ([]models.U
 
 	return users, meta, nil
 }
-
-// --- Preferences Methods ---
-
-func (s *UserService) GetPreferences(ctx context.Context, userID string) (*models.UserPreferences, error) {
-	prefs, err := s.repo.GetPreferences(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return defaults if none found
-	if prefs == nil {
-		return &models.UserPreferences{UserID: userID, EmailEnabled: false, Frequency: "immediate"}, nil
-	}
-	return prefs, nil
-}
-
-func (s *UserService) UpdatePreferences(ctx context.Context, userID string, req models.UserPreferences) error {
-	req.UserID = userID // Ensure ID is set from context
-	return s.repo.UpsertPreferences(ctx, &req)
-}
